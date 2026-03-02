@@ -8,6 +8,7 @@
 3. 运行测试：`pytest tests/`
 
 ## 目录结构
+```text
 workflow-automation/
 ├── README.md                 # 项目总说明
 ├── requirements.txt          # Python 依赖
@@ -34,3 +35,4 @@ workflow-automation/
     ├── api_reference.md
     ├── workflow_diagrams/
     └── troubleshooting.md
+```
