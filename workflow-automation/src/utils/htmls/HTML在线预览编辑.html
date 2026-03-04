@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML 代码编辑预览 (带语法高亮 + 行号)</title>
+
+    <!-- CodeMirror 核心样式与主题 (可根据喜好换主题) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/eclipse.min.css"> <!-- 默认使用 eclipse 主题，清爽 -->
+    
+    <style>
+        /* 原有的主题定义保持不变 */
+        body.theme-gugong {
+            background-color: #853a35;
+        }
+
+        body.theme-gugong .code-wrapper,
+        body.theme-gugong .preview-wrapper {
+            background-color: #f0e0d0;
+        }
+
+        body.theme-gugong button {
+            background-color: #fcad51;
+        }
+
+        body.theme-gugong button:hover {
+            background-color: #d5b7ad;
+        }
+
+        body.theme-light-board {
+            background-color: #9677F8;
+        }
+
+        body.theme-light-board .code-wrapper,
+        body.theme-light-board .preview-wrapper {
+            background-color: #07CEFF;
+        }
+
+        body.theme-light-board button {
+            background-color: #FE89FE;
+        }
+
+        body.theme-light-board button:hover {
+            background-color: #FF4AFD;
+        }
+
+        body.theme-fade {
+            background-color: #DADAD8;
+        }
+
+        body.theme-fade .code-wrapper,
+        body.theme-fade .preview-wrapper {
+            background-color: #939391;
+        }
+
+        body.theme-fade button {
+            background-color: #626461;
+        }
+
+        body.theme-fade button:hover {
+            background-color: #424242;
+        }
+
+        body.theme-clear-sky {
+            background-color: #5292C0;
+        }
+
+        body.theme-clear-sky .code-wrapper,
+        body.theme-clear-sky .preview-wrapper {
+            background-color: #B9DEE4;
+        }
+
+        body.theme-clear-sky button {
+            background-color: #3F689E;
+        }
+
+        body.theme-clear-sky button:hover {
+            background-color: #375684;
+        }
+
+        body.theme-forest {
+            background-color: #B9DEE7;
+        }
+
+        body.theme-forest .code-wrapper,
+        body.theme-forest .preview-wrapper {
+            background-color: #A9D2C0;
+        }
+
+        body.theme-forest button {
+            background-color: #509880;
+        }
+
+        body.theme-forest button:hover {
+            background-color: #4D7664;
+        }
+
+        body.theme-blush-blue {
+            background-color: #B6CCDB;
+        }
+
+        body.theme-blush-blue .code-wrapper,
+        body.theme-blush-blue .preview-wrapper {
+            background-color: #D2ABBF;
+        }
+
+        body.theme-blush-blue button {
+            background-color: #686D9B;
+        }
+
+        body.theme-blush-blue button:hover {
+            background-color: #4B5295;
+        }
+
+        body {
+            font-family: "Comic Sans MS", cursive, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            padding: 0 20px;
+        }
+
+        .editor-container {
+            display: flex;
+            flex: 1;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        .code-wrapper,
+        .preview-wrapper {
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            height: 90%;
+            position: relative;
+            margin: 0 5px;
+        }
+
+        .code-wrapper {
+            width: 30%;
+            min-width: 100px;
+            /* 为 CodeMirror 容器设置背景和圆角，确保填充 */
+            background-color: inherit;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* 防止 CodeMirror 溢出 */
+        }
+
+        /* CodeMirror 直接挂载在这个容器内，我们需要它占据全部高度 */
+        .CodeMirror {
+            height: 100%;
+            width: 100%;
+            border-radius: 8px; /* 与 textarea 原来的圆角一致 */
+            font-family: "Courier New", monospace;
+            font-size: 14px;
+        }
+
+        .preview-wrapper {
+            flex: 1;
+            min-width: 100px;
+        }
+
+        #preview {
+            width: 100%;
+            height: 100%;
+            border: none;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        .button-container {
+            text-align: center;
+            padding: 20px;
+        }
+
+        button {
+            padding: 12px 25px;
+            margin: 0 10px;
+            border: none;
+            color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: "Comic Sans MS", cursive, sans-serif;
+            transition: background-color 0.3s ease;
+        }
+
+        .resizer {
+            width: 12px;
+            height: 90%;
+            background-color: transparent;
+            cursor: col-resize;
+            margin: 0 -6px;
+            z-index: 1;
+            position: relative;
+            border-radius: 3px;
+            transition: background-color 0.2s ease;
+        }
+
+        .resizer:hover {
+            background-color: transparent;
+        }
+
+        /* 防止拖动时选中文字 */
+        .noselect {
+            user-select: none;
+        }
+
+        /* 下拉列表样式 */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+            border-radius: 8px;
+            left: 50%;
+            bottom: 100%; /* 将下拉列表置于按钮上方 */
+            transform: translateX(-50%);
+        }
+
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f1f1f1;
+            border-radius: 8px;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+    </style>
+
+    <!-- 百度统计 & Google Analytics (保留原有) -->
+    <script>
+        var _hmt = _hmt || [];
+        (function () {
+            var hm = document.createElement("script");
+            hm.src = "https://hm.baidu.com/hm.js?272119dae6cce7e3ded69c4a57f828d1";
+            var s = document.getElementsByTagName("script")[0];
+            s.parentNode.insertBefore(hm, s);
+        })();
+    </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-N13ZH72VV9"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-N13ZH72VV9');
+    </script>
+</head>
+
+<body class="theme-gugong">
+    <div class="editor-container">
+        <!-- 左侧代码编辑区：用 div 作为 CodeMirror 的挂载容器 -->
+        <div class="code-wrapper" id="code-wrapper">
+            <!-- 原来的 <textarea> 被移除，CodeMirror 将动态创建编辑器 -->
+        </div>
+        <div class="resizer" id="resizer"></div>
+        <div class="preview-wrapper" id="preview-wrapper">
+            <iframe id="preview"></iframe>
+        </div>
+    </div>
+    <div class="button-container">
+        <button onclick="updatePreview()">更新预览</button>
+        <button onclick="setFileName()">设置文件名</button>
+        <button onclick="exportHTML()">导出 HTML</button>
+        <div class="dropdown">
+            <button>主题</button>
+            <div class="dropdown-content">
+                <a href="#" onclick="changeTheme('gugong'); return false;">故宫</a>
+                <a href="#" onclick="changeTheme('light-board'); return false;">灯牌</a>
+                <a href="#" onclick="changeTheme('fade'); return false;">失色</a>
+                <a href="#" onclick="changeTheme('clear-sky'); return false;">晴空</a>
+                <a href="#" onclick="changeTheme('forest'); return false;">森林</a>
+                <a href="#" onclick="changeTheme('blush-blue'); return false;">粉蓝</a>
+            </div>
+        </div>
+        <input type="file" id="fileInput" style="display: none;" accept=".html">
+        <button onclick="document.getElementById('fileInput').click()">上传 HTML 文件</button>
+    </div>
+
+    <!-- 引入 CodeMirror 核心库及必需的模式 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <!-- HTML 混合模式 (依赖 xml 和 javascript 模式) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+
+    <script>
+        // 初始化 CodeMirror 编辑器
+        const editor = CodeMirror(document.getElementById('code-wrapper'), {
+            value: '',                      // 初始内容
+            mode: 'htmlmixed',              // HTML 混合模式（支持 HTML、CSS、JS 高亮）
+            lineNumbers: true,               // 显示行号
+            theme: 'eclipse',                 // 使用 eclipse 主题（可自行更换）
+            indentUnit: 2,                    // 缩进空格数
+            autoCloseTags: true,              // 自动闭合标签
+            autoCloseBrackets: true,          // 自动闭合括号
+            matchBrackets: true,               // 括号匹配高亮
+            styleActiveLine: true,             // 当前行高亮
+            viewportMargin: Infinity           // 保证编辑器始终撑满
+        });
+
+        // 将默认示例代码放入编辑器（可选，可以留空让用户粘贴）
+        editor.setValue('<!-- 在这里粘贴或编写 HTML 代码 -->\n<!DOCTYPE html>\n<html>\n<head>\n    <title>示例</title>\n</head>\n<body>\n    <h1>你好，世界！</h1>\n</body>\n</html>');
+
+        let fileName = 'exported_page.html';
+
+        // 更新预览：从编辑器获取代码，设置 iframe 的 srcdoc
+        function updatePreview() {
+            const code = editor.getValue();
+            const preview = document.getElementById('preview');
+            preview.srcdoc = code;
+        }
+
+        function setFileName() {
+            const newFileName = prompt('请输入文件名（无需后缀）', fileName.replace('.html', ''));
+            if (newFileName) {
+                fileName = newFileName + '.html';
+            }
+        }
+
+        function exportHTML() {
+            const code = editor.getValue();
+            const blob = new Blob([code], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 原有的分隔条拖动逻辑（微调以不影响编辑器）
+        (function initResizer() {
+            const resizer = document.getElementById('resizer');
+            const container = document.querySelector('.editor-container');
+            const codeWrapper = document.getElementById('code-wrapper');
+            let isDragging = false;
+
+            resizer.addEventListener('mousedown', function (e) {
+                isDragging = true;
+                document.body.classList.add('noselect');
+                document.body.style.cursor = 'col-resize';
+
+                const startX = e.clientX;
+                const codeWidth = codeWrapper.getBoundingClientRect().width;
+                const containerWidth = container.getBoundingClientRect().width;
+
+                document.addEventListener('mousemove', dragMove);
+                document.addEventListener('mouseup', dragEnd);
+
+                function dragMove(e) {
+                    if (!isDragging) return;
+                    const deltaX = e.clientX - startX;
+                    const newCodeWidth = (codeWidth + deltaX) / containerWidth * 100;
+                    const finalWidth = Math.max(20, Math.min(80, newCodeWidth));
+                    codeWrapper.style.width = `${finalWidth}%`;
+                    // 调整编辑器大小后，需要通知 CodeMirror 刷新以正确渲染
+                    editor.refresh();
+                }
+
+                function dragEnd() {
+                    isDragging = false;
+                    document.body.classList.remove('noselect');
+                    document.body.style.cursor = 'default';
+                    document.removeEventListener('mousemove', dragMove);
+                    document.removeEventListener('mouseup', dragEnd);
+                }
+            });
+
+            // 防止 iframe 干扰鼠标事件
+            document.getElementById('preview').addEventListener('mouseenter', () => {
+                if (isDragging) {
+                    document.body.style.pointerEvents = 'none';
+                }
+            });
+
+            document.getElementById('preview').addEventListener('mouseleave', () => {
+                document.body.style.pointerEvents = 'auto';
+            });
+        })();
+
+        // 主题切换函数（原样保留）
+        function changeTheme(theme) {
+            const body = document.body;
+            body.classList.remove('theme-gugong', 'theme-light-board', 'theme-fade', 'theme-clear-sky', 'theme-forest', 'theme-blush-blue');
+            body.classList.add(`theme-${theme}`);
+        }
+
+        // 文件上传处理：读取文件内容并设置到编辑器，同时更新预览
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    const code = event.target.result;
+                    editor.setValue(code);               // 设置编辑器内容
+                    document.getElementById('preview').srcdoc = code; // 立即预览
+                };
+                reader.readAsText(file);
+            }
+            // 重置 input，以便再次上传同一文件时仍触发 change
+            this.value = '';
+        });
+
+        // 可选：初始化时自动预览一次（显示示例）
+        window.onload = function() {
+            updatePreview();
+        };
+    </script>
+</body>
+
+</html>
