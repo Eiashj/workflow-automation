@@ -3,7 +3,7 @@
     // 1. 配置基础参数
     const baseUrl = "https://b2bwork.baidu.com/api/goods/getList";
     const params = {
-        token: "a258e392a47031fa121a72b94d21ffa9",
+        token: "e60044a4b4313261c63f07bcd67d6132",
         froms: "yzs",
         type: "all",
         s: 50, // 每页数量
